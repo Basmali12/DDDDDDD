@@ -206,17 +206,23 @@
         video.play();
     };
 
-    // تشغيل باقي الفيديوهات عند التمرير
+    // تشغيل باقي الفيديوهات عند التمرير (تم التعديل لإصلاح مشكلة الصوت)
     function setupScrollObserver() {
         const videos = document.querySelectorAll('video');
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-                // نتخطى الفيديو الأول لأنه يعمل يدوياً في البداية
-                if (entry.target.classList.contains('vid-0') && !entry.target.paused) return;
-
                 if (entry.isIntersecting) {
+                    // ✅ الإصلاح: إيقاف جميع الفيديوهات الأخرى فوراً لمنع تداخل الصوت
+                    document.querySelectorAll('video').forEach(v => {
+                        if (v !== entry.target) {
+                            v.pause();
+                        }
+                    });
+
+                    // تشغيل الفيديو الحالي
                     entry.target.play().catch(()=> console.log('Autoplay blocked'));
                 } else {
+                    // إيقاف الفيديو عند اختفائه
                     entry.target.pause();
                     entry.target.currentTime = 0;
                 }
