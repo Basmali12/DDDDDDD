@@ -7,13 +7,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        body { background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
 
         #feed-container {
             height: 100vh;
             width: 100vw;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
+            background: #000;
         }
 
         .video-card {
@@ -30,26 +31,27 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-            max-width: 500px; /* للهواتف */
+            object-fit: cover; /* جعل الفيديو يملأ الشاشة */
+            max-width: 500px; /* لضبط العرض على الحواسيب */
         }
 
-        /* الطبقة السفلية (العنوان والاسم) */
+        /* المعلومات السفلية */
         .bottom-info {
             position: absolute;
             bottom: 20px;
-            right: 15px;
+            right: 10px;
             left: 70px; /* مساحة للقائمة الجانبية */
             z-index: 2;
             text-align: right;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            pointer-events: none; /* يسمح بالضغط من خلاله */
         }
         
         .username { font-weight: bold; font-size: 1.1em; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
-        .verified { color: #20D5EC; font-size: 0.8em; } /* ميزة 1: التوثيق */
-        .desc { font-size: 0.9em; line-height: 1.4; margin-bottom: 10px; }
+        .verified { color: #20D5EC; font-size: 0.8em; }
+        .desc { font-size: 0.95em; line-height: 1.4; margin-bottom: 10px; }
         
-        /* القائمة الجانبية (لايك، شير، حفظ) */
+        /* القائمة الجانبية */
         .sidebar {
             position: absolute;
             bottom: 30px;
@@ -61,39 +63,29 @@
             align-items: center;
         }
         
-        .action-btn { text-align: center; }
+        .action-btn { text-align: center; cursor: pointer; }
         .icon-box {
             background: rgba(0,0,0,0.4);
             width: 45px; height: 45px;
             border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            font-size: 22px;
+            font-size: 24px;
             margin-bottom: 5px;
             transition: 0.2s;
-            cursor: pointer;
+            color: white;
         }
-        .icon-box:hover { transform: scale(1.1); background: rgba(255,255,255,0.1); }
-        .count { font-size: 12px; font-weight: bold; }
+        .icon-box:active { transform: scale(0.9); }
+        .count { font-size: 12px; font-weight: 600; text-shadow: 1px 1px 2px black; }
         
-        /* زر التشغيل الكبير للفيديو الأول */
-        .play-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.3);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 10;
-            cursor: pointer;
-        }
-        .play-btn-big { font-size: 60px; color: rgba(255,255,255,0.8); }
-
-        /* ميزة 2: القرص الدوار للموسيقى */
+        /* القرص الدوار */
         .music-disc {
             width: 45px; height: 45px;
             background: #222;
             border-radius: 50%;
-            border: 8px solid #111;
+            border: 8px solid #151515;
             background-image: url('https://cdn-icons-png.flaticon.com/512/1754/1754432.png');
             background-size: cover;
-            animation: spin 4s linear infinite;
+            animation: spin 5s linear infinite;
             margin-top: 10px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -112,6 +104,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
     import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
+    // 🔑 إعدادات Firebase الخاصة بك
     const firebaseConfig = {
         apiKey: "AIzaSyC59tNY6IlcGI7XSd1-yDTcN1Iux5zv7k8",
         authDomain: "tktk-4f724.firebaseapp.com",
@@ -131,35 +124,23 @@
         feedContainer.innerHTML = ""; 
 
         if (!snapshot.empty) {
-            let index = 0;
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 if(data.url) {
                     const card = document.createElement('div');
                     card.className = 'video-card';
                     
-                    let playOverlayHTML = '';
-                    // نجعل السمة الافتراضية muted ليسمح المتصفح بالتحميل، وسنقوم بتفعيل الصوت بالجافاسكربت
-                    let autoPlayAttr = 'loop playsinline muted'; 
-                    
-                    if (index === 0) {
-                        playOverlayHTML = `
-                            <div class="play-overlay" onclick="startFirstVideo(this)">
-                                <i class="fas fa-play play-btn-big"></i>
-                            </div>
-                        `;
-                    }
-
+                    // استخدام preload="metadata" افتراضياً لتوفير البيانات
+                    // سنغيره إلى auto برمجياً للفيديو الذي يظهر
                     card.innerHTML = `
-                        <video src="${data.url}" ${autoPlayAttr} class="vid-${index}"></video>
-                        ${playOverlayHTML}
+                        <video src="${data.url}" loop playsinline preload="metadata" onclick="togglePlay(this)"></video>
                         
                         <div class="bottom-info">
                             <div class="username">
                                 @Admin <i class="fas fa-check-circle verified"></i>
                             </div>
                             <div class="desc">${data.title || 'فيديو جديد'}</div>
-                            <div style="font-size:0.8em; opacity:0.7;">🎵 الصوت الأصلي - Admin Music</div>
+                            <div style="font-size:0.8em; opacity:0.8;">🎵 الصوت الأصلي - Music Track</div>
                         </div>
 
                         <div class="sidebar">
@@ -169,7 +150,7 @@
                             </div>
                             <div class="action-btn">
                                 <div class="icon-box"><i class="fas fa-comment-dots"></i></div>
-                                <span class="count">204</span>
+                                <span class="count">${data.stats?.views || '10k'}</span>
                             </div>
                             <div class="action-btn">
                                 <div class="icon-box"><i class="fas fa-bookmark" style="color:#f1c40f"></i></div>
@@ -186,7 +167,6 @@
                         </div>
                     `;
                     feedContainer.appendChild(card);
-                    index++;
                 }
             });
             setupScrollObserver();
@@ -195,43 +175,54 @@
         }
     });
 
-    window.startFirstVideo = (overlay) => {
-        const video = overlay.parentElement.querySelector('video');
-        overlay.style.display = 'none';
-        video.muted = false;
-        video.play();
-    };
-
+    // 🌟 نظام المراقب والتحميل الذكي
     function setupScrollObserver() {
         const videos = document.querySelectorAll('video');
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
+                const video = entry.target;
+                
                 if (entry.isIntersecting) {
-                    // 1. إيقاف جميع الفيديوهات الأخرى
+                    // 1. إيقاف كل الفيديوهات الأخرى
                     document.querySelectorAll('video').forEach(v => {
-                        if (v !== entry.target) {
+                        if (v !== video) {
                             v.pause();
+                            v.currentTime = 0;
                         }
                     });
 
-                    // 2. تشغيل الفيديو الحالي وتفعيل الصوت
-                    // هذا السطر هو الحل: نخبر المتصفح بتشغيل الصوت فوراً
-                    entry.target.muted = false;
-                    
-                    entry.target.play().catch(() => {
-                        // في حال رفض المتصفح الصوت، نشغله صامتاً كحل احتياطي
-                        entry.target.muted = true;
-                        entry.target.play();
+                    // 2. تشغيل الفيديو الحالي
+                    // نغير التحميل لـ auto لضمان السرعة الآن
+                    video.preload = "auto";
+                    video.play().catch(e => {
+                        // في حالة الحماية من الصوت، نشغله صامت
+                        // video.muted = true; video.play(); 
                     });
+
+                    // 3. 🚀 التحميل المسبق للفيديو التالي (Background Loading)
+                    // هذا هو السر لعدم التقطيع
+                    const parentCard = video.closest('.video-card');
+                    const nextCard = parentCard.nextElementSibling;
+                    if (nextCard) {
+                        const nextVideo = nextCard.querySelector('video');
+                        if (nextVideo) {
+                            nextVideo.preload = "auto"; // ابدأ تحميل الفيديو القادم في الخلفية
+                        }
+                    }
+
                 } else {
-                    entry.target.pause();
-                    entry.target.currentTime = 0;
+                    video.pause();
                 }
             });
         }, { threshold: 0.6 });
 
         videos.forEach(video => observer.observe(video));
     }
+
+    window.togglePlay = (video) => {
+        if (video.paused) video.play();
+        else video.pause();
+    };
 </script>
 
 </body>
