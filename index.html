@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKTK Video Feed</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+
+        #feed-container {
+            height: 100vh;
+            width: 100vw;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+        }
+
+        .video-card {
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            scroll-snap-align: start;
+            position: relative;
+            background: #111;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            max-width: 500px;
+        }
+
+        .overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 2;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="feed-container">
+    <div style="height:100vh; display:flex; justify-content:center; align-items:center;">
+        جاري تحميل الفيديوهات... 🚀
+    </div>
+</div>
+
+<script type="module">
+    // استيراد مكتبات Firebase (الإصدار الحديث 12.8.0)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+    // 🔑 إعدادات مشروعك الخاصة
+    const firebaseConfig = {
+        apiKey: "AIzaSyC59tNY6IlcGI7XSd1-yDTcN1Iux5zv7k8",
+        authDomain: "tktk-4f724.firebaseapp.com",
+        projectId: "tktk-4f724",
+        storageBucket: "tktk-4f724.firebasestorage.app",
+        messagingSenderId: "349884221151",
+        appId: "1:349884221151:web:68d68a27b7fef09ad40b6a"
+    };
+
+    // تشغيل Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const feedContainer = document.getElementById('feed-container');
+
+    // طلب الفيديوهات مرتبة بالأحدث
+    const q = query(collection(db, "videos"), orderBy("timestamp", "desc"));
+
+    // الاستماع للبيانات
+    onSnapshot(q, (snapshot) => {
+        feedContainer.innerHTML = ""; 
+
+        if (!snapshot.empty) {
+            snapshot.forEach((doc) => {
+                const videoData = doc.data();
+                if(videoData.url) {
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.innerHTML = `
+                        <video src="${videoData.url}" loop playsinline onclick="togglePlay(this)"></video>
+                        <div class="overlay">
+                            <h3>🔥 جديد</h3>
+                        </div>
+                    `;
+                    feedContainer.appendChild(card);
+                }
+            });
+            // تفعيل ميزة التشغيل التلقائي
+            setupScrollObserver();
+        } else {
+            feedContainer.innerHTML = "<h3 style='text-align:center; padding-top:50px; color:#aaa'>لا توجد فيديوهات حتى الآن</h3>";
+        }
+    }, (error) => {
+        console.error("Error getting documents: ", error);
+        // ملاحظة: إذا ظهر خطأ في الكونسول يطلب "Create Index"، اضغط على الرابط الموجود في الخطأ
+    });
+
+    // كود التشغيل عند التمرير
+    function setupScrollObserver() {
+        const videos = document.querySelectorAll('video');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.play();
+                } else {
+                    entry.target.pause();
+                    entry.target.currentTime = 0;
+                }
+            });
+        }, { threshold: 0.6 });
+
+        videos.forEach(video => observer.observe(video));
+    }
+
+    window.togglePlay = (video) => {
+        if (video.paused) video.play();
+        else video.pause();
+    };
+</script>
+
+</body>
+</html>
