@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أدمن TKTK - رفع فيديو</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: #222; padding: 20px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
+        input, button { width: 100%; padding: 10px; margin-top: 10px; border-radius: 5px; border: none; }
+        button { background: #E91E63; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #C2185B; }
+        .status { margin-top: 15px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎥 لوحة الرفع (Firestore)</h2>
+    <input type="file" id="fileInput" accept="video/*">
+    <button onclick="uploadAndSave()">رفع ونشر 🚀</button>
+    <div id="status" class="status"></div>
+</div>
+
+<script type="module">
+    // استيراد مكتبات Firebase (الإصدار الحديث 12.8.0)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+    // 🔑 إعدادات مشروعك الخاصة
+    const firebaseConfig = {
+        apiKey: "AIzaSyC59tNY6IlcGI7XSd1-yDTcN1Iux5zv7k8",
+        authDomain: "tktk-4f724.firebaseapp.com",
+        projectId: "tktk-4f724",
+        storageBucket: "tktk-4f724.firebasestorage.app",
+        messagingSenderId: "349884221151",
+        appId: "1:349884221151:web:68d68a27b7fef09ad40b6a"
+    };
+
+    // تشغيل Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.uploadAndSave = async function() {
+        const fileInput = document.getElementById('fileInput');
+        const statusDiv = document.getElementById('status');
+
+        if (!fileInput.files[0]) return alert("اختر فيديو أولاً!");
+
+        statusDiv.innerText = "⏳ جاري الرفع للسيرفر (Catbox)...";
+        
+        const formData = new FormData();
+        formData.append('reqtype', 'fileupload');
+        formData.append('fileToUpload', fileInput.files[0]);
+
+        try {
+            // 1. الرفع لـ Catbox
+            // ملاحظة: نستخدم corsproxy لتفادي مشاكل الحماية
+            const res = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://catbox.moe/user/api.php'), {
+                method: 'POST',
+                body: formData
+            });
+            const videoUrl = await res.text();
+
+            if (!videoUrl.startsWith('http')) throw new Error('فشل الرفع لـ Catbox');
+
+            // 2. الحفظ في قاعدة بيانات جوجل (Firestore)
+            statusDiv.innerText = "💾 جاري الحفظ في قاعدة البيانات...";
+            
+            await addDoc(collection(db, "videos"), {
+                url: videoUrl,
+                timestamp: serverTimestamp()
+            });
+
+            statusDiv.innerHTML = `<span style="color:#4CAF50">✅ تم النشر بنجاح!</span><br><small>الرابط: ${videoUrl}</small>`;
+
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerText = "❌ حدث خطأ: " + err.message;
+        }
+    };
+</script>
+
+</body>
+</html>
