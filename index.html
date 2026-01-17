@@ -138,20 +138,16 @@
                     const card = document.createElement('div');
                     card.className = 'video-card';
                     
-                    // تحضير زر التشغيل للفيديو الأول فقط
                     let playOverlayHTML = '';
-                    let autoPlayAttr = 'loop playsinline';
+                    // نجعل السمة الافتراضية muted ليسمح المتصفح بالتحميل، وسنقوم بتفعيل الصوت بالجافاسكربت
+                    let autoPlayAttr = 'loop playsinline muted'; 
                     
                     if (index === 0) {
-                        // الفيديو الأول: لا يعمل تلقائياً، ويظهر زر تشغيل
                         playOverlayHTML = `
                             <div class="play-overlay" onclick="startFirstVideo(this)">
                                 <i class="fas fa-play play-btn-big"></i>
                             </div>
                         `;
-                    } else {
-                        // الفيديوهات التالية: تعمل بالتحكم البرمجي (Observer)
-                        autoPlayAttr = 'loop playsinline muted'; // muted ضروري للتشغيل التلقائي
                     }
 
                     card.innerHTML = `
@@ -160,7 +156,8 @@
                         
                         <div class="bottom-info">
                             <div class="username">
-                                @Admin <i class="fas fa-check-circle verified"></i> </div>
+                                @Admin <i class="fas fa-check-circle verified"></i>
+                            </div>
                             <div class="desc">${data.title || 'فيديو جديد'}</div>
                             <div style="font-size:0.8em; opacity:0.7;">🎵 الصوت الأصلي - Admin Music</div>
                         </div>
@@ -172,7 +169,8 @@
                             </div>
                             <div class="action-btn">
                                 <div class="icon-box"><i class="fas fa-comment-dots"></i></div>
-                                <span class="count">204</span> </div>
+                                <span class="count">204</span>
+                            </div>
                             <div class="action-btn">
                                 <div class="icon-box"><i class="fas fa-bookmark" style="color:#f1c40f"></i></div>
                                 <span class="count">${data.stats?.saves || 0}</span>
@@ -181,10 +179,9 @@
                                 <div class="icon-box"><i class="fas fa-share"></i></div>
                                 <span class="count">${data.stats?.shares || 0}</span>
                             </div>
-                             <div class="action-btn" onclick="window.open('${data.url}', '_blank')">
+                            <div class="action-btn" onclick="window.open('${data.url}', '_blank')">
                                 <div class="icon-box"><i class="fas fa-download"></i></div>
                             </div>
-                            
                             <div class="music-disc"></div>
                         </div>
                     `;
@@ -198,31 +195,35 @@
         }
     });
 
-    // تشغيل الفيديو الأول يدوياً
     window.startFirstVideo = (overlay) => {
         const video = overlay.parentElement.querySelector('video');
-        overlay.style.display = 'none'; // إخفاء زر التشغيل
-        video.muted = false; // تفعيل الصوت
+        overlay.style.display = 'none';
+        video.muted = false;
         video.play();
     };
 
-    // تشغيل باقي الفيديوهات عند التمرير (تم التعديل لإصلاح مشكلة الصوت)
     function setupScrollObserver() {
         const videos = document.querySelectorAll('video');
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    // ✅ الإصلاح: إيقاف جميع الفيديوهات الأخرى فوراً لمنع تداخل الصوت
+                    // 1. إيقاف جميع الفيديوهات الأخرى
                     document.querySelectorAll('video').forEach(v => {
                         if (v !== entry.target) {
                             v.pause();
                         }
                     });
 
-                    // تشغيل الفيديو الحالي
-                    entry.target.play().catch(()=> console.log('Autoplay blocked'));
+                    // 2. تشغيل الفيديو الحالي وتفعيل الصوت
+                    // هذا السطر هو الحل: نخبر المتصفح بتشغيل الصوت فوراً
+                    entry.target.muted = false;
+                    
+                    entry.target.play().catch(() => {
+                        // في حال رفض المتصفح الصوت، نشغله صامتاً كحل احتياطي
+                        entry.target.muted = true;
+                        entry.target.play();
+                    });
                 } else {
-                    // إيقاف الفيديو عند اختفائه
                     entry.target.pause();
                     entry.target.currentTime = 0;
                 }
