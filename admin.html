@@ -8,23 +8,27 @@
         body { font-family: sans-serif; background: #111; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .container { background: #222; padding: 20px; border-radius: 10px; width: 90%; max-width: 450px; text-align: center; border: 1px solid #333; }
         
-        /* نظام التبويبات */
+        /* التبويبات */
         .tabs { display: flex; justify-content: space-around; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
         .tab-btn { background: none; border: none; color: #888; font-size: 16px; cursor: pointer; padding: 5px 15px; }
         .tab-btn.active { color: #E91E63; border-bottom: 2px solid #E91E63; font-weight: bold; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
+        /* الحقول */
         input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: none; box-sizing: border-box; background: #333; color: white; outline: none; }
         input:focus { border: 1px solid #E91E63; }
-        button.upload-btn { background: #E91E63; font-weight: bold; margin-top: 20px; cursor: pointer; }
-        button.upload-btn:hover { background: #C2185B; }
+        .row { display: flex; gap: 10px; }
         
+        button.upload-btn { background: #E91E63; font-weight: bold; margin-top: 20px; cursor: pointer; transition: 0.3s; }
+        button.upload-btn:hover { background: #C2185B; transform: scale(1.02); }
+        
+        /* قائمة الحذف */
         .delete-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 10px; margin-bottom: 5px; border-radius: 5px; text-align: right; }
         .delete-btn { background: #ff4444; width: auto; padding: 5px 15px; margin: 0; font-size: 12px; cursor: pointer; }
-        
-        .status { margin-top: 15px; font-size: 0.9em; }
         .preview-img { width: 40px; height: 40px; border-radius: 5px; object-fit: cover; margin-left: 10px; }
+        
+        .status { margin-top: 15px; font-size: 0.9em; min-height: 20px; }
     </style>
 </head>
 <body>
@@ -37,17 +41,18 @@
 
     <div id="upload" class="tab-content active">
         <h3>بيانات الفيديو</h3>
-        <input type="text" id="vidTitle" placeholder="عنوان الفيديو (مثال: تصميم جديد 🔥)">
-        <div style="display:flex; gap:5px;">
+        <input type="text" id="vidTitle" placeholder="عنوان الفيديو (مثال: ترند جديد 🔥)">
+        
+        <div class="row">
             <input type="number" id="vidLikes" placeholder="عدد اللايكات ❤️">
             <input type="number" id="vidSaves" placeholder="عدد الحفظ 💾">
         </div>
-        <div style="display:flex; gap:5px;">
+        <div class="row">
             <input type="number" id="vidShares" placeholder="عدد المشاركة 🔗">
-            <input type="number" id="vidViews" placeholder="المشاهدات (ميزة 1) 👁️">
+            <input type="number" id="vidViews" placeholder="عدد المشاهدات 👁️">
         </div>
         
-        <input type="file" id="fileInput" accept="video/*" style="margin-top:15px; background:#444;">
+        <input type="file" id="fileInput" accept="video/*" style="margin-top:15px; background:#444; padding: 20px;">
         <button class="upload-btn" onclick="uploadAndSave()">رفع ونشر 🚀</button>
         <div id="status" class="status"></div>
     </div>
@@ -64,6 +69,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, serverTimestamp, getDocs, deleteDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
+    // 🔑 إعدادات Firebase الخاصة بك
     const firebaseConfig = {
         apiKey: "AIzaSyC59tNY6IlcGI7XSd1-yDTcN1Iux5zv7k8",
         authDomain: "tktk-4f724.firebaseapp.com",
@@ -88,7 +94,7 @@
 
         if (!fileInput.files[0]) return alert("اختر فيديو أولاً!");
 
-        statusDiv.innerText = "⏳ جاري الرفع لـ Catbox...";
+        statusDiv.innerText = "⏳ جاري الرفع لـ Catbox (قد يستغرق وقتاً)...";
         
         const formData = new FormData();
         formData.append('reqtype', 'fileupload');
@@ -109,7 +115,10 @@
                 timestamp: serverTimestamp()
             });
 
-            statusDiv.innerHTML = `<span style="color:#4CAF50">✅ تم النشر!</span>`;
+            statusDiv.innerHTML = `<span style="color:#4CAF50">✅ تم النشر بنجاح!</span>`;
+            // تفريغ الحقول
+            document.getElementById('vidTitle').value = '';
+            fileInput.value = '';
             loadVideosForDelete(); // تحديث قائمة الحذف
 
         } catch (err) {
@@ -121,12 +130,16 @@
     // دالة جلب الفيديوهات للحذف
     async function loadVideosForDelete() {
         const listDiv = document.getElementById('videoList');
-        listDiv.innerHTML = "جاري التحديث...";
         
         const q = query(collection(db, "videos"), orderBy("timestamp", "desc"));
         const snapshot = await getDocs(q);
         
         listDiv.innerHTML = "";
+        if (snapshot.empty) {
+            listDiv.innerHTML = "لا توجد فيديوهات.";
+            return;
+        }
+
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             const item = document.createElement('div');
@@ -134,7 +147,10 @@
             item.innerHTML = `
                 <div style="display:flex; align-items:center;">
                     <video src="${data.url}" class="preview-img"></video>
-                    <span style="margin-right:10px; font-size:12px;">${data.title || 'بدون عنوان'}</span>
+                    <div style="margin-right:10px;">
+                        <div style="font-size:12px; font-weight:bold;">${data.title || 'بدون عنوان'}</div>
+                        <div style="font-size:10px; color:#aaa;">${data.stats?.likes || 0} لايك</div>
+                    </div>
                 </div>
                 <button class="delete-btn" onclick="deleteVideo('${docSnap.id}')">حذف</button>
             `;
@@ -144,7 +160,7 @@
 
     // دالة الحذف الفعلية
     window.deleteVideo = async (id) => {
-        if(confirm('هل أنت متأكد من حذف هذا الفيديو؟')) {
+        if(confirm('هل أنت متأكد من حذف هذا الفيديو نهائياً؟')) {
             await deleteDoc(doc(db, "videos", id));
             loadVideosForDelete();
         }
